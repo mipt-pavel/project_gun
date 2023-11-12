@@ -114,9 +114,16 @@ class Gun:
             self.color = GREY
 
     def draw(self):
-        
-        return False
-        
+        x_m, y_m = pygame.mouse.get_pos()
+        an = math.atan2((self.y-y_m), (x_m - self.x))
+        pygame.draw.line(
+            self.screen,
+            self.color,
+            (self.x, self.y),
+            (self.x + (40*math.cos(an)), self.y - (40*math.sin(an))),
+            10
+            )
+
     def power_up(self):
         if self.f2_on:
             if self.f2_power < 100:
@@ -129,17 +136,16 @@ class Gun:
 class Target:
     def new_target(self):
         """ Инициализация новой цели. """
-        x = self.x = rnd.randint(600, 780)
-        y = self.y = rnd.randint(300, 550)
-        r = self.r = rnd.randint(2, 50)
-        color = self.color = RED
+        self.x = rnd.randint(600, 780)
+        self.y = rnd.randint(300, 550)
+        self.r = rnd.randint(2, 50)
+        self.color = RED
         self.live = 1
         
     def __init__(self, screen):
         self.screen = screen
         self.points = 0
         self.new_target()
-        # FIXME: don't work!!! How to call this functions when object is created?
 
     def hit(self, points=1):
         """Попадание шарика в цель."""
@@ -181,7 +187,9 @@ while not finished:
         elif event.type == pygame.MOUSEBUTTONUP:
             gun.fire2_end(event)
         elif event.type == pygame.MOUSEMOTION:
+            #gun.draw(event)
             gun.targetting(event)
+           
 
     for b in balls:
         b.move()

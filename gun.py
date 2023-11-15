@@ -5,9 +5,9 @@ from random import choice
 import pygame
 
 pygame.font.init()
-f1 = pygame.font.Font(None, 36)
-f2 = pygame.font.Font(None, 36)
-f3 = pygame.font.Font(None, 24)
+text_points = pygame.font.Font(None, 36)
+text_hit_target = pygame.font.Font(None, 36)
+text_freeze_bomb = pygame.font.Font(None, 24)
 
 All_points = 0
 
@@ -59,11 +59,16 @@ class Ball:
         self.vy -= 1
         if (self.x + self.r) >= WIDTH:
             self.vx = -self.vx
-        if (self.y + self.r) >= HEIGHT:
+        if (self.y + self.r) >= HEIGHT-10:
             self.vy = -self.vy*0.7
             self.vx = 0.85*self.vx
+        if abs(self.vx) <= 1 and abs(self.vy) <= 1:
+            self.vx = 0
+            self.vy = 0
 
     def draw(self):
+        """Метод отрисовки снаряда на экране.
+        """
         pygame.draw.circle(
             self.screen,
             self.color,
@@ -87,6 +92,12 @@ class Ball:
 
 class Bomb:
     def __init__(self, screen, x = 40, y = 450):
+        """ Конструктор класса Bomb
+
+        Args:
+        x - начальное положение бомбы по горизонтали
+        y - начальное положение бомбы по вертикали
+        """
         self.screen = screen
         self.x = x
         self.y = y
@@ -99,6 +110,10 @@ class Bomb:
         
     def move(self):
         """Переместить бомбу по прошествии единицы времени.
+        
+        Метод описывает перемещение бомбы за один кадр перерисовки. То есть, обновляет значения
+        self.x и self.y с учетом скоростей self.vx и self.vy, при этом силы гравитации на бомбу, 
+        не действуют.
         """
         if self.live != 0:
             self.live -= 1
@@ -116,6 +131,8 @@ class Bomb:
             self.vy = -self.vy
             
     def draw(self):
+        """Метод отрисовки бомбы на экране.
+        """
         pygame.draw.circle(
             self.screen,
             self.color,
@@ -124,6 +141,13 @@ class Bomb:
         )
         
     def hittest(self, obj):
+        """Функция проверяет сталкивалкивается ли данный обьект с целью, описываемой в обьекте obj.
+
+        Args:
+            obj: Обьект, с которым проверяется столкновение.
+        Returns:
+            Возвращает True в случае столкновения бомбы и цели. В противном случае возвращает False.
+        """
         if (abs(self.x - obj.x) <= (self.r + obj.r)) and (abs(self.y - obj.y) <= (self.r + obj.r)):
             return True
         else:
@@ -132,6 +156,12 @@ class Bomb:
     
 class Gun:
     def __init__(self, screen, x=40, y=450):
+        """ Конструктор класса Gun
+
+        Args:
+        x - начальное положение пушки по горизонтали
+        y - начальное положение пушки по вертикали
+        """
         self.x = x
         self.y = y
         self.screen = screen
@@ -144,28 +174,31 @@ class Gun:
         self.length = 40
 
     def fire2_start(self, event):
+        """ Метод считывает нажатие кнопки мыши (отличая нажатие левой кнопки от правой) и 
+        передает в атрибут пушки, при условии, что игра не на паузе.
+        """
         global pause, All_points
         if not pause:
             if event.button == 1:
                 self.f2_on_ba = 1
             if event.button == 3:
-                if All_points >= 10:
+                if All_points >= 5:
                     self.f2_on_bo = 1
 
     def fire2_end(self, event):
-        """Выстрел мячом.
+        """Выстрел снарядом.
 
         Происходит при отпускании кнопки мыши.
         Начальные значения компонент скорости мяча vx и vy зависят от положения мыши.
         """
         global balls, bombs, pause, time_pause, All_points
+        self.targetting(event)
         if not pause:
             time_pause = 1
             self.bullet += 1
             if self.f2_on_ba == 1:
                 new_ball = Ball(self.screen)
                 new_ball.r += 5
-                self.an = math.atan2((event.pos[1]-new_ball.y), (event.pos[0]-new_ball.x))
                 new_ball.vx = self.f2_power * math.cos(self.an)
                 new_ball.vy = - self.f2_power * math.sin(self.an)
                 balls.append(new_ball)
@@ -173,23 +206,25 @@ class Gun:
             if self.f2_on_bo == 1:
                 new_bomb = Bomb(self.screen)
                 new_bomb.r += 5
-                self.an = math.atan2((event.pos[1]-new_bomb.y), (event.pos[0]-new_bomb.x))
                 new_bomb.vx = self.f2_power * math.cos(self.an)
                 new_bomb.vy = - self.f2_power * math.sin(self.an)
                 bombs.append(new_bomb)
                 self.f2_on_bo = 0
-                All_points -= 10
+                All_points -= 5
             self.f2_power = 10
             self.length = 40
 
     def targetting(self, event):
-        """Прицеливание. Зависит от положения мыши."""
+        """Прицеливание. Зависит от положения мыши. Возвращает угол, под которым должна
+        стрелять пушка"""
         if event:
-            self.an = math.atan((event.pos[1]-450) / (event.pos[0]-20))
-        if self.f2_on_ba or self.f2_on_bo:
-            self.color = RED
-        else:
-            self.color = GREY
+            if (event.pos[0]-20) != 0:
+                self.an = math.atan((event.pos[1]-450) / (event.pos[0]-20))
+            elif (event.pos[1]-450) >= 0:
+                self.an = math.pi/2
+            else:
+                self.an = (3*math.pi)/2
+        return self.an
 
     def draw(self):
         """ Рисование пушки. Зависит от положения мыши. """
@@ -204,6 +239,9 @@ class Gun:
             )
 
     def power_up(self):
+        """ Зарядка пушки, увеличивает начальную скорость с коэффициентом self.f2_power. 
+        Зависит от времени нажатия кнопки мыши.
+        """
         if self.f2_on_ba or self.f2_on_bo:
             if self.f2_power < 100:
                 self.f2_power += 1
@@ -215,12 +253,12 @@ class Gun:
 
 class Target:
     def new_target(self):
-        """ Инициализация новой цели. """
-        self.x = rnd.randint(600, 780)
-        self.y = rnd.randint(300, 550)
-        self.r = rnd.randint(2, 50)
-        self.vx = rnd.randint(3, 10)
-        self.vy = rnd.randint(3, 10)
+        """ Инициализация новой цели. Все параметры цели являются случайными величинами. """
+        self.x = rnd.randint(600, 745)
+        self.y = rnd.randint(100, 550)
+        self.r = rnd.randint(7, 50)
+        self.vx = rnd.randint(3, 10)*math.cos(rnd.randint(0, 3))
+        self.vy = rnd.randint(3, 10)*math.sin(rnd.randint(0, 3))
         self.live = 1
         self.notfreeze = 1
         
@@ -237,41 +275,54 @@ class Target:
         time_pause = 100
         
     def count_point(self, screen):
-        text1 = f1.render(str(All_points), True, BLACK)
+        """ Метод отвечает за вывод текста на экран: количество набранных очков, количество
+        выстрелов до попадания, информация о замораживающей бомбе.
+        """
+        text1 = text_points.render(str(All_points), True, BLACK)
         self.screen.blit(text1, (100, 50))
-        text3 = f3.render('Набери 10 очков для замораживающей бомбы', True, BLACK)
+        text3 = text_freeze_bomb.render('Набери 5 очков для замораживающей бомбы (правая кнопка мыши)', True, BLACK)
         self.screen.blit(text3, (150, 50))
         if pause:
-            text2 = f2.render('Вы попали в цель за '+str(gun.bullet)+' выстрел', True, BLACK)
+            text2 = text_hit_target.render('Вы попали в цель за '+str(gun.bullet)+' выстрел(а)', True, BLACK)
             self.screen.blit(text2, (225, 270))
 
     def draw(self):
-        pygame.draw.circle(
-            self.screen,
-            self.color,
-            (self.x, self.y),
-            self.r
-            )
+        """Метод отрисовки целей на экране.
+        """
+        if not(self.notfreeze):
+            pygame.draw.circle(
+                self.screen,
+                LIGHT_BLUE,
+                (self.x, self.y),
+                self.r
+                )
+        else:
+            pygame.draw.circle(
+                self.screen,
+                self.color,
+                (self.x, self.y),
+                self.r
+                )
         
     def move(self):
+        """Переместить цель по прошествии единицы времени.
+        
+        Метод описывает перемещение цели за один кадр перерисовки. То есть, обновляет значения
+        self.x и self.y с учетом скоростей self.vx и self.vy.
+        """
         if self.notfreeze:
             self.x += self.vx
             self.y += self.vy
             if (self.x + self.r) >= WIDTH:
                 self.vx = -self.vx
-            if (self.x - self.r) <= 550:
+            if (self.x - self.r) <= 350:
                 self.vx = -self.vx
             if (self.y - self.r) <= 0:
                 self.vy = -self.vy
-            if (self.y + self.r) >= HEIGHT:
+            if (self.y + self.r) >= HEIGHT-60:
                 self.vy = -self.vy
-        elif not(self.notfreeze):
-            self.color = LIGHT_BLUE
-            self.vx = 0
-            self.vy = 0
 
 
-pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pause = 0
 time_pause = 1
@@ -289,18 +340,19 @@ while not finished:
     screen.fill(WHITE)
     gun.draw()
     
-    if not pause:
-        target1.draw()
-        target2.draw()
-        target1.move()
-        target2.move()
-    target1.count_point(screen)
-    
     if pause and (time_pause > 0):
         time_pause -= 1
     elif time_pause == 0:
         pause = 0
         gun.bullet = 0
+        
+    target1.count_point(screen)
+    
+    if not pause:
+        target1.draw()
+        target2.draw()
+        target1.move()
+        target2.move()
 
     for ba in balls:
         if not pause:
@@ -325,12 +377,14 @@ while not finished:
 
     for ba in balls:
         ba.move()
-        if ba.hittest(target1) and target1.live:
+        if ba.hittest(target1) and target1.live and pause != 1:
             target1.live = 0
+            target1.notfreeze = 1
             target1.hit()
             target1.new_target()
-        elif ba.hittest(target2) and target2.live:
+        elif ba.hittest(target2) and target2.live and pause != 1:
             target2.live = 0
+            target2.notfreeze = 1
             target2.hit()
             target2.new_target()
         if ba.live == 0:
